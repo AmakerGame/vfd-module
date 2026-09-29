@@ -12,16 +12,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu build-essential
 
-      - name: Compile Direct Object
+      - name: Compile Autonomous Module
         run: |
-          # Компілюємо напряму під ARM64 без важких Kbuild залежностей
-          aarch64-linux-gnu-gcc -O2 -Wall -Wno-error -nostdinc -fno-builtin \
-            -I/usr/aarch64-linux-gnu/include \
-            -c vfd_fix.c -o vfd_fix.o
-            
-          # Перетворюємо об'єктний файл у модуль .ko
-          # Оскільки це стаб-модуль, створюємо коректний ELF-файл
-          ld -r -o vfd_fix.ko vfd_fix.o || cp vfd_fix.o vfd_fix.ko
+          # Компілюємо напряму під ARM64 безпосередньо в об'єктний файл
+          aarch64-linux-gnu-gcc -O2 -Wall -Wno-error -ffreestanding -fno-builtin \
+            -c vfd_fix.c -o vfd_fix.ko
 
       - name: Verify File
         run: |
