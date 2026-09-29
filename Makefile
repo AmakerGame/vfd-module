@@ -1,1 +1,1 @@
-obj-m += vfd_fix.o
+obj-m += vfd_display.o
