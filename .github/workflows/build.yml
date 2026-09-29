@@ -7,17 +7,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Toolchain and Headers
+      - name: Setup Multiarch and Install ARM64 Headers
         run: |
+          # Додаємо архітектуру arm64 до apt для отримання нативних ARM64 заголовків
+          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-generic
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-arm64
 
       - name: Compile 64-bit Module
         run: |
-          KDIR=$(ls -d /lib/modules/*/build | head -n 1)
+          # Знаходимо шлях саме до ARM64 заголовків
+          KDIR=$(ls -d /usr/src/linux-headers-*-arm64 | head -n 1)
+          echo "Using ARM64 KDIR: $KDIR"
           
-          # Компілюємо під ARM64 з явним зазначенням крос-компілятора
-          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=aarch64-linux-gnu-gcc modules
+          # Запускаємо збірку з чистими ARM64 заголовками
+          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
       - name: Verify Architecture
         run: |
