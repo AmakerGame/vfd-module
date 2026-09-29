@@ -1,4 +1,4 @@
-name: Build 32-bit Kernel Module
+name: Build AArch64 Kernel Module
 on: [push]
 
 jobs:
@@ -7,24 +7,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ARM32 GCC Toolchain
+      - name: Install Toolchain and Headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf build-essential
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-generic
 
-      - name: Compile Autonomous Module for ARM32
+      - name: Compile 64-bit Module
         run: |
-          # Компілюємо напряму під 32-бітний ARM (armv7l / armv8l)
-          arm-linux-gnueabihf-gcc -O2 -Wall -Wno-error -ffreestanding -fno-builtin \
-            -c vfd_fix.c -o vfd_fix.ko
+          KDIR=$(ls -d /lib/modules/*/build | head -n 1)
+          
+          # Компілюємо під ARM64 з явним зазначенням крос-компілятора
+          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=aarch64-linux-gnu-gcc modules
 
-      - name: Verify File Architecture
+      - name: Verify Architecture
         run: |
-          ls -la vfd_fix.ko
           file vfd_fix.ko
+          ls -la vfd_fix.ko
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vfd_fix_module_arm32
+          name: vfd_fix_aarch64
           path: "vfd_fix.ko"
