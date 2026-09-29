@@ -1,21 +1,27 @@
 name: Build Kernel Module
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ARM64 Cross Compiler and Build Tools
+      - name: Install Toolchain and ARM64 Headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-generic
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-5.4.0-100-generic
 
       - name: Compile Module
         run: |
-          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- || true
+          echo "obj-m += vfd_fix.o" > Makefile
+          KDIR="/lib/modules/$(ls /lib/modules | grep generic | head -n 1)/build"
+          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules || true
 
-      - name: Upload .ko Artifact
+      - name: Check Output
+        run: ls -la
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: vfd_fix_module
