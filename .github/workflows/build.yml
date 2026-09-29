@@ -7,22 +7,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Toolchain and ARM64 Kernel Headers
+      - name: Install Toolchain and ARM64 Headers
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-generic-hwe-24.04 || sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-$(uname -r)
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-generic
 
       - name: Compile Module
         run: |
           echo "obj-m += vfd_fix.o" > Makefile
           KDIR=$(ls -d /lib/modules/*/build | head -n 1)
-          echo "Building with KDIR=$KHDR"
-          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          
+          # Очищення прапорців x86 ftrace для сумісності з ARM64
+          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- \
+            CONFIG_RECORD_MCOUNT=n \
+            CONFIG_DYNAMIC_FTRACE=n \
+            modules
 
-      - name: Verify Output File
+      - name: Check Built Module
         run: |
-          ls -la
-          test -f vfd_fix.ko || (echo "ERROR: vfd_fix.ko was not generated!" && exit 1)
+          ls -la vfd_fix.ko
+          file vfd_fix.ko
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
