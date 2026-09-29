@@ -14,20 +14,25 @@ jobs:
 
       - name: Download and Prepare Exact Kernel 5.4.125 Sources
         run: |
-          # Завантажуємо вихідні коди саме вашої версії ядра для збірки з правильним vermagic
           wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.4.125.tar.xz
           tar -xf linux-5.4.125.tar.xz
           cd linux-5.4.125
           
-          # Готуємо конфігурацію під архітектуру ARM64
+          # Створюємо базову конфігурацію під ARM64
           make ARCH=arm64 defconfig
-          make ARCH=arm64 prepare
-          make ARCH=arm64 scripts
+          
+          # Явно розділяємо хост-компілятор (HOSTCC) та цільовий крос-компілятор (CC)
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc CC=aarch64-linux-gnu-gcc prepare
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- HOSTCC=gcc CC=aarch64-linux-gnu-gcc scripts
 
       - name: Compile Kernel Module
         run: |
-          # Компілюємо модуль проти завантажених джерел ядра 5.4.125
-          make -C linux-5.4.125 M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          # Зберігаємо шлях до кореня репозиторію
+          ROOT_DIR=$PWD
+          cd linux-5.4.125
+          
+          # Компілюємо модуль з папки ядра, вказуючи шлях до наших вихідних кодів через M=
+          make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- CC=aarch64-linux-gnu-gcc M=$ROOT_DIR modules
 
       - name: Verify File Format
         run: |
