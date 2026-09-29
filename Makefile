@@ -1,9 +1,10 @@
 obj-m += vfd_fix.o
 
-KDIR ?= /lib/modules/$(shell uname -r)/build
+# Прибираємо x86-специфічні прапорці хоста, які ламають крос-компіляцію ARM64
+KBUILD_CFLAGS := $(filter-out -mrecord-mcount,$(KBUILD_CFLAGS))
 
 all:
-	make -C $(KDIR) M=$(PWD) modules ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+	$(MAKE) -C $(KDIR) M=$(PWD) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
 
 clean:
-	make -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
