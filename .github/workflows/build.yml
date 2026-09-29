@@ -1,4 +1,4 @@
-name: Build AArch64 Kernel Module
+name: Build AArch64 Kernel Module (5.4.125)
 on: [push]
 
 jobs:
@@ -7,29 +7,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Multiarch and Install ARM64 Headers
+      - name: Install Build Dependencies
         run: |
-          # Додаємо архітектуру arm64 до apt для отримання нативних ARM64 заголовків
-          sudo dpkg --add-architecture arm64
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential linux-headers-arm64
+          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential libncurses-dev bison flex libssl-dev bc wget xz-utils
 
-      - name: Compile 64-bit Module
+      - name: Download and Prepare Exact Kernel 5.4.125 Sources
         run: |
-          # Знаходимо шлях саме до ARM64 заголовків
-          KDIR=$(ls -d /usr/src/linux-headers-*-arm64 | head -n 1)
-          echo "Using ARM64 KDIR: $KDIR"
+          # Завантажуємо вихідні коди саме вашої версії ядра для збірки з правильним vermagic
+          wget https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.4.125.tar.xz
+          tar -xf linux-5.4.125.tar.xz
+          cd linux-5.4.125
           
-          # Запускаємо збірку з чистими ARM64 заголовками
-          make -C $KDIR M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+          # Готуємо конфігурацію під архітектуру ARM64
+          make ARCH=arm64 defconfig
+          make ARCH=arm64 prepare
+          make ARCH=arm64 scripts
 
-      - name: Verify Architecture
+      - name: Compile Kernel Module
         run: |
-          file vfd_fix.ko
-          ls -la vfd_fix.ko
+          # Компілюємо модуль проти завантажених джерел ядра 5.4.125
+          make -C linux-5.4.125 M=$PWD ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- modules
+
+      - name: Verify File Format
+        run: |
+          file vfd_display.ko
+          aarch64-linux-gnu-readelf -h vfd_display.ko
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vfd_fix_aarch64
-          path: "vfd_fix.ko"
+          name: vfd_display_kernel_5.4.125
+          path: vfd_display.ko
