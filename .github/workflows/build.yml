@@ -1,4 +1,4 @@
-name: Build Kernel Module
+name: Build 32-bit Kernel Module
 on: [push]
 
 jobs:
@@ -7,18 +7,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ARM64 GCC Toolchain
+      - name: Install ARM32 GCC Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu build-essential
+          sudo apt-get install -y gcc-arm-linux-gnueabihf build-essential
 
-      - name: Compile Autonomous Module
+      - name: Compile Autonomous Module for ARM32
         run: |
-          # Компілюємо напряму під ARM64 безпосередньо в об'єктний файл
-          aarch64-linux-gnu-gcc -O2 -Wall -Wno-error -ffreestanding -fno-builtin \
+          # Компілюємо напряму під 32-бітний ARM (armv7l / armv8l)
+          arm-linux-gnueabihf-gcc -O2 -Wall -Wno-error -ffreestanding -fno-builtin \
             -c vfd_fix.c -o vfd_fix.ko
 
-      - name: Verify File
+      - name: Verify File Architecture
         run: |
           ls -la vfd_fix.ko
           file vfd_fix.ko
@@ -26,5 +26,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vfd_fix_module
+          name: vfd_fix_module_arm32
           path: "vfd_fix.ko"
