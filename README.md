@@ -387,11 +387,11 @@ GitHub Actions automatically:
 
 ## License
 
-[Specify your license here - e.g., GPL v2]
+MIT
 
 ## Authors
 
-- Main development: [Your Name/Organization]
+- Main development: [Edytor Studio]
 - Reverse engineering: [Contributors]
 
 ## Support
@@ -420,4 +420,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Latest Release**: v1.0  
 **Last Updated**: 2026-09-29  
-**Maintainer**: [@YOUR_HANDLE](https://github.com/YOUR_HANDLE)
+**Maintainer**: [@YOUR_HANDLE](https://github.com/AmakerGame)
