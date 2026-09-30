@@ -420,4 +420,4 @@ See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 **Latest Release**: v1.0  
 **Last Updated**: 2026-09-29  
-**Maintainer**: [@YOUR_HANDLE](https://github.com/AmakerGame)
+**Maintainer**: [@AmakerGame](https://github.com/AmakerGame)
