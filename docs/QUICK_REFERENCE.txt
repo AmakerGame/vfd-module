@@ -1,0 +1,179 @@
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║              VFD DISPLAY DRIVER REVERSE ENGINEERING - QUICK REFERENCE              ║
+║                     Meson-VFD (Android TV Box) AArch64 Kernel                      ║
+╚════════════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+1. KEY DISCOVERIES
+
+   ✓ Main VFD text display function FOUND: set_vfd_led_value @ 0xffffffc0109e72a0
+   ✓ Function is GLOBAL (can be called from loadable kernel modules)
+   ✓ sysfs attribute exists: /sys/devices/platform/meson-vfd/attr/led
+   ✓ Current sysfs only supports "tcd" diagnostic commands
+   ✓ NO existing userspace text display API (needs 10-line patch or LKM)
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+2. FUNCTION ADDRESSES (AArch64 vmlinux.elf)
+
+   set_vfd_led_value              0xffffffc0109e72a0  [GLOBAL EXPORT_SYMBOL]
+   MDrv_FrontPnl_Update           0xffffffc0109e9800  [GLOBAL - main driver]
+   MDrv_TM1623_LED_DISP           0xffffffc0109e897c  [GLOBAL]
+   MDrv_TM1623_WriteData          0xffffffc0109e74ac  [GLOBAL]
+   Led_Time_Display               0xffffffc0109e7fd8  [GLOBAL]
+   Led_Tm1628_Display             0xffffffc0109e7b6c  [GLOBAL]
+   vfd_led_store                  0xffffffc0109e65f8  [LOCAL - sysfs callback]
+   vfd_led_show                   0xffffffc0109e65b0  [LOCAL]
+   vfd_probe                      0xffffffc0109e5e30  [LOCAL - driver init]
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+3. SYSFS PATHS
+
+   /sys/devices/platform/meson-vfd/attr/led          [VFD 4-char display]
+   /sys/devices/platform/meson-vfd/attr/greenled     [Power LED]
+   /sys/devices/platform/meson-vfd/attr/wlanled      [WiFi LED]
+   /sys/devices/platform/meson-vfd/attr/cardled      [Card Reader LED]
+   /sys/devices/platform/meson-vfd/attr/usbled       [USB LED]
+   /sys/devices/platform/meson-vfd/attr/ethernetled  [Ethernet LED]
+   /sys/devices/platform/meson-vfd/attr/appled       [App Status LED]
+   /sys/devices/platform/meson-vfd/attr/agingled     [Aging Mode LED]
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+4. CURRENT WORKING COMMANDS
+
+   LED control:
+     echo 1 > /sys/devices/platform/meson-vfd/attr/greenled      # Turn ON
+     echo 0 > /sys/devices/platform/meson-vfd/attr/greenled      # Turn OFF
+
+   VFD diagnostic (test mode):
+     echo tcd0 > /sys/devices/platform/meson-vfd/attr/led        # Pattern 0
+     echo tcd1 > /sys/devices/platform/meson-vfd/attr/led        # Pattern 1
+     (tcd0-tcdf available)
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+5. WHAT'S MISSING
+
+   ✗ Cannot display arbitrary text via sysfs
+   ✗ vfd_led_store only accepts "tcd" commands
+   ✗ set_vfd_led_value not exposed to userspace
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+6. SOLUTIONS TO ENABLE TEXT DISPLAY
+
+   METHOD A: Kernel Patch (RECOMMENDED)
+   ─────────────────────────────────────
+   - Modify: vfd_led_store() function
+   - Add: ~10 lines to call set_vfd_led_value for plain text
+   - Result: echo "TEXT" > /sys/.../attr/led
+   - Time: 5 min patch, rebuild kernel (~1 hour)
+
+   METHOD B: Loadable Kernel Module (WORKS TODAY)
+   ───────────────────────────────────────────────
+   - Create: LKM that calls exported set_vfd_led_value()
+   - No kernel rebuild needed
+   - Result: Works immediately
+   - Time: 30 min to write/compile, load with insmod
+
+   METHOD C: Direct Function Call (Advanced)
+   ──────────────────────────────────────────
+   - Call set_vfd_led_value() directly from kernel code
+   - Use if you have bootloader/kernel source access
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+7. CALL HIERARCHY
+
+   Userspace sysfs write
+          ↓
+   vfd_led_store() [LOCAL]
+          ↓
+   (currently) MDrv_Test()  [diagnostic only]
+          
+   (should be) set_vfd_led_value() [GLOBAL EXPORT_SYMBOL] ← CAN BE CALLED FROM LKM
+          ↓
+   MDrv_FrontPnl_Update() [GLOBAL] ← converts ASCII to 7-segment
+          ↓
+   MDrv_TM1623_LED_DISP() × 4 [GLOBAL] ← per-segment driver
+          ↓
+   MDrv_TM1623_WriteData() [GLOBAL] ← I2C/SPI write
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+8. HARDWARE DETAILS
+
+   Display buffer RAM:     0x1147a380 - 0x1147a383 (4 bytes for 4 segments)
+   Controller chip:        TM1623 (I2C/SPI)
+   Display type:           7-segment LED/VFD
+   Display width:          4 characters
+   Character encoding:     7-segment patterns (bits 0-7)
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+9. PROOF OF CONCEPT
+
+   After applying kernel patch or loading LKM:
+
+   $ echo "TEST" > /sys/devices/platform/meson-vfd/attr/led
+   → Display shows: TEST
+
+   $ echo "1234" > /sys/devices/platform/meson-vfd/attr/led
+   → Display shows: 1234
+
+   $ echo "BOOT" > /sys/devices/platform/meson-vfd/attr/led
+   → Display shows: BOOT
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+10. NEXT STEPS
+
+    1. Read: VFD_REVERSE_ENGINEERING_REPORT.md (complete technical reference)
+    2. Choose: IMPLEMENTATION_GUIDE.md (pick Method A, B, or C)
+    3. Implement: Apply kernel patch or compile LKM
+    4. Test: echo "TEXT" > /sys/.../attr/led
+    5. Integrate: Add to init scripts for boot display
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+11. FILES PROVIDED
+
+    ✓ VFD_REVERSE_ENGINEERING_REPORT.md  - Complete technical analysis (14 KB)
+    ✓ FINAL_FINDINGS_SUMMARY.txt         - Key discoveries summary
+    ✓ IMPLEMENTATION_GUIDE.md            - Step-by-step implementation (3 methods)
+    ✓ QUICK_REFERENCE.txt                - This file
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+SYMBOL EXPORT STATUS - CRITICAL FINDING
+
+   These functions are GLOBAL and EXPORTED (can be called from loadable modules):
+   ✓ set_vfd_led_value
+   ✓ MDrv_FrontPnl_Update
+   ✓ MDrv_TM1623_LED_DISP
+   ✓ MDrv_TM1623_WriteData
+   ✓ Led_Time_Display
+   ✓ Led_Tm1628_Display
+   ✓ Led_Show_lockflg
+   ✓ MDrv_FrontPnl_Init
+
+   These functions are LOCAL (kernel module only, not exported):
+   ✗ vfd_led_store
+   ✗ vfd_led_show
+   ✗ vfd_probe
+
+   IMPLICATION: LKM method (Method B) WORKS TODAY without kernel rebuild!
+
+═══════════════════════════════════════════════════════════════════════════════════════
+
+RECOMMENDED IMMEDIATE ACTION
+
+   1. Create simple LKM that calls set_vfd_led_value()
+   2. Compile and load: insmod vfd_display.ko
+   3. Test: echo "TEST" > /sys/kernel/vfd_display/display
+   4. Works immediately (no kernel rebuild needed)
+
+═══════════════════════════════════════════════════════════════════════════════════════

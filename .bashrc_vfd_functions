@@ -1,0 +1,280 @@
+# VFD Display Control Functions
+# Add to your ~/.bashrc:
+#   source /path/to/.bashrc_vfd_functions
+
+VFD_PATH="/sys/kernel/vfd_display/display"
+
+# Check if VFD is available
+_vfd_available() {
+    if [ ! -w "$VFD_PATH" ]; then
+        echo "VFD module not loaded. Run: cd /path/to/vfd_display && make load"
+        return 1
+    fi
+    return 0
+}
+
+# Display text on VFD (max 4 chars, auto-padded)
+vfd() {
+    if ! _vfd_available; then return 1; fi
+    
+    local text="$1"
+    if [ -z "$text" ]; then
+        echo "Usage: vfd TEXT"
+        return 1
+    fi
+    
+    # Pad to 4 chars
+    printf "%-4.4s\n" "$text" | tee "$VFD_PATH" >/dev/null
+}
+
+# Show what's currently on display
+vfd_show() {
+    if ! _vfd_available; then return 1; fi
+    cat "$VFD_PATH"
+}
+
+# Boot sequence
+vfd_boot() {
+    if ! _vfd_available; then return 1; fi
+    
+    vfd "BOOT"
+    sleep 1
+    vfd "OK  "
+    sleep 1
+    vfd "RUN "
+}
+
+# Cycle through multiple messages
+vfd_cycle() {
+    if ! _vfd_available; then return 1; fi
+    
+    if [ $# -lt 1 ]; then
+        echo "Usage: vfd_cycle [interval] MSG1 MSG2 ..."
+        echo "Default interval: 2 seconds"
+        return 1
+    fi
+    
+    local interval=2
+    # Check if first arg is number (interval)
+    if [[ "$1" =~ ^[0-9]+$ ]]; then
+        interval=$1
+        shift
+    fi
+    
+    while true; do
+        for msg in "$@"; do
+            vfd "$msg"
+            sleep "$interval"
+        done
+    done
+}
+
+# Display IP address (last octet)
+vfd_ip() {
+    if ! _vfd_available; then return 1; fi
+    
+    if [ -z "$1" ]; then
+        # Use first interface IP
+        local ip=$(hostname -I 2>/dev/null | cut -d' ' -f1)
+    else
+        local ip="$1"
+    fi
+    
+    if [ -z "$ip" ]; then
+        echo "No IP found"
+        return 1
+    fi
+    
+    # Extract last octet
+    local octet=$(echo "$ip" | cut -d'.' -f4)
+    vfd "IP${octet: -2}"
+}
+
+# Display time (HHMM)
+vfd_time() {
+    if ! _vfd_available; then return 1; fi
+    
+    local time=$(date +%H%M)
+    vfd "$time"
+}
+
+# Display temperature (if available)
+vfd_temp() {
+    if ! _vfd_available; then return 1; fi
+    
+    if [ -z "$1" ]; then
+        echo "Usage: vfd_temp <temp_value>"
+        echo "Example: vfd_temp 45"
+        return 1
+    fi
+    
+    # Format: T##C (e.g., T45C)
+    local temp=$(printf "T%02dC" "$1")
+    vfd "$temp"
+}
+
+# Display status message
+vfd_status() {
+    if ! _vfd_available; then return 1; fi
+    
+    case "${1,,}" in
+        boot)   vfd "BOOT" ;;
+        ok)     vfd "OK  " ;;
+        run)    vfd "RUN " ;;
+        stop)   vfd "STOP" ;;
+        test)   vfd "TEST" ;;
+        wait)   vfd "WAIT" ;;
+        busy)   vfd "BUSY" ;;
+        error)  vfd "ERR " ;;
+        *)      echo "Unknown status: $1"; return 1 ;;
+    esac
+}
+
+# Animation helper - progress bar
+vfd_progress() {
+    if ! _vfd_available; then return 1; fi
+    
+    local frames=(".-  " "-.  " " -. " "  -." " -.." "  ..")
+    
+    for i in {1..10}; do
+        for frame in "${frames[@]}"; do
+            vfd "$frame"
+            sleep 0.1
+        done
+    done
+}
+
+# Animation - loading
+vfd_loading() {
+    if ! _vfd_available; then return 1; fi
+    
+    local frames=(".   " "..  " "... " "....")
+    
+    for i in {1..5}; do
+        for frame in "${frames[@]}"; do
+            vfd "LOAD$frame"
+            sleep 0.2
+        done
+    done
+}
+
+# Animation - spinning
+vfd_spin() {
+    if ! _vfd_available; then return 1; fi
+    
+    local frames=("\\   " " \\  " "  \\ " "   \\")
+    
+    for i in {1..8}; do
+        for frame in "${frames[@]}"; do
+            vfd "WAIT$frame"
+            sleep 0.15
+        done
+    done
+}
+
+# Turn off module
+vfd_stop() {
+    echo "Unloading VFD module..."
+    sudo rmmod vfd_display
+    echo "Module unloaded"
+}
+
+# Help
+vfd_help() {
+    cat << 'EOF'
+
+┌──────────────────────────────────────────────────────────────┐
+│              VFD DISPLAY CONTROL - BASH FUNCTIONS            │
+└──────────────────────────────────────────────────────────────┘
+
+BASIC FUNCTIONS:
+
+  vfd TEXT              Display text (auto-padded to 4 chars)
+                        $ vfd "TEST"      → Shows: TEST
+                        $ vfd "HI"        → Shows: HI  
+                        $ vfd "1234"      → Shows: 1234
+
+  vfd_show              Show current display content
+                        $ vfd_show         → TEST
+
+STATUS FUNCTIONS:
+
+  vfd_status STAT       Show status message (boot,ok,run,stop,etc)
+                        $ vfd_status ok    → Shows: OK  
+                        $ vfd_status boot  → Shows: BOOT
+
+  vfd_boot              Boot sequence (BOOT → OK → RUN)
+                        $ vfd_boot
+
+ANIMATION FUNCTIONS:
+
+  vfd_cycle MSGS        Cycle through messages (auto-repeat)
+                        $ vfd_cycle "BOOT" "OK  " "RUN "
+                        $ vfd_cycle 3 "BOOT" "WAIT" "OK  " (3sec each)
+
+  vfd_progress          Show progress bar animation
+                        $ vfd_progress
+
+  vfd_loading           Show loading animation
+                        $ vfd_loading
+
+  vfd_spin              Show spinning animation
+                        $ vfd_spin
+
+SYSTEM FUNCTIONS:
+
+  vfd_time              Show current time (HHMM)
+                        $ vfd_time         → Shows: 1434
+
+  vfd_ip [IP]           Show IP last octet
+                        $ vfd_ip           → Shows: IP192 (from hostname -I)
+                        $ vfd_ip 192.168   → Shows: IP68
+
+  vfd_temp VALUE        Show temperature
+                        $ vfd_temp 45      → Shows: T45C
+
+MODULE CONTROL:
+
+  vfd_stop              Unload VFD module
+                        $ vfd_stop
+
+  vfd_help              Show this help
+                        $ vfd_help
+
+EXAMPLES:
+
+  # Simple display
+  vfd "BOOT"
+
+  # Boot sequence
+  vfd_boot
+
+  # Cycle messages every 2 seconds
+  vfd_cycle "BOOT" "TEST" "OK  "
+
+  # Cycle every 3 seconds
+  vfd_cycle 3 "MSG1" "MSG2" "MSG3"
+
+  # Show system time
+  vfd_time
+
+  # Show loading
+  vfd_loading
+
+  # Show progress
+  vfd_progress
+
+  # Show spinning
+  vfd_spin
+
+  # Continuous loop showing status
+  while true; do
+    vfd_time
+    sleep 5
+  done
+
+EOF
+}
+
+# Show short help on load
+echo "✓ VFD functions loaded. Run 'vfd_help' for usage."

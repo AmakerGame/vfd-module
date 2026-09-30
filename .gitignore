@@ -1,0 +1,56 @@
+# Build artifacts
+*.o
+*.ko
+*.mod.o
+*.mod.c
+*.symvers
+*.order
+*.ko.cmd
+*.mod.cmd
+*.c.cmd
+
+# Build directories
+build/
+tmp/
+.tmp*
+Module.symvers
+modules.order
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build system
+*.a
+*.so
+*.so.*
+*.lib
+*.dll
+
+# Documentation build
+docs/_build/
+*.pdf
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# CI/CD
+.github/workflows/cache/
+
+# Kernel builds
+linux-*
+vmlinux*
+.config
+
+# Local testing
+test_output/
+*.log
